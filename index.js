@@ -9,8 +9,8 @@ const port = process.env.PORT || 8000;
 app.use(express.json());
 app.use(cors());
 
-console.log(process.env.DB_SECRET_PASS);
-console.log(process.env.DB_SECRET_USER);
+// console.log(process.env.DB_SECRET_PASS);
+// console.log(process.env.DB_SECRET_USER);
 
 const uri = `mongodb+srv://${process.env.DB_SECRET_USER}:${process.env.DB_SECRET_PASS}@cluster0.gv1gxa1.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -33,7 +33,6 @@ async function run() {
       const bookingCollection = client.db("diagnosis").collection("booking");
 
       const verifyToken = (req, res, next) => {
-         console.log(req.headers);
          if (!req.headers.authorization) {
             return res.status(401).send({ message: "forbidden access" });
          }
@@ -71,18 +70,52 @@ async function run() {
             return res.status(403).send("unauthorized access");
          }
          const query = { email: email };
-         const user = await userCollection.findOne(query);
+         const user = await usersCollection.findOne(query);
          let admin = false;
          if (user) {
-            console.log(user.role);
-
             admin = user?.role === "admin";
          }
+         res.send({ admin });
       });
+      app.get("/users", verifyToken, async (req, res) => {
+         const result = await usersCollection.find().toArray();
+         res.send(result);
+      });
+
+      app.delete("/users/:id", async (req, res) => {
+         const id = req.params.id;
+         const query = { _id: new ObjectId(id) };
+         const result = await usersCollection.deleteOne(query);
+         res.send(result);
+      });
+
+      app.patch("/users/admin/:id", async (req, res) => {
+         const id = req.params.id;
+         const filter = { _id: new ObjectId(id) };
+         const updateDoc = {
+            $set: {
+               role: "admin",
+            },
+         };
+         const result = await usersCollection.updateOne(filter, updateDoc);
+         res.send(result);
+      });
+
       // booking api
       app.post("/bookings", async (req, res) => {
          const user = req.body;
          const result = await bookingCollection.insertOne(user);
+         res.send(result);
+      });
+
+      app.get("/bookings", verifyToken, async (req, res) => {
+         const result = await bookingCollection.find().toArray();
+         res.send(result);
+      });
+      app.delete("/bookings/:id", async (req, res) => {
+         const id = req.params.id;
+         const query = { _id: new ObjectId(id) };
+         const result = await bookingCollection.deleteOne(query);
          res.send(result);
       });
       //   services api
