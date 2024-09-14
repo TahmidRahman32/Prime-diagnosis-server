@@ -165,19 +165,23 @@ async function run() {
       app.post("/payment", async (req, res) => {
          const payment = req.body;
          const result = await paymentCollection.insertOne(payment);
-         console.log(payment);
-         const query = {
-            _id: {
-               $in: payment.paymentId.map((id) => new ObjectId(id)),
-            },
-         };
+         console.log(payment,'payment box');
+         const query = {_id: {
+               $in: payment.bookingId.map((id) => new ObjectId(id)),
+            }};
+         console.log(query, 'i am is query');
+         
          const deleteResult = await bookingCollection.deleteMany(query);
 
       res.send({result, deleteResult});
       });
 
-      app.get('/payment',async(req,res)=>{
-         const result = await paymentCollection.find().toArray();
+      app.get('/payment/:email',verifyToken, async(req,res)=>{
+         const email = {email: req.params.email};
+         if (req.params.email !== req.decoded.email) {
+            return res.status(403).send({ message: "forbidden access" });
+         }
+         const result = await paymentCollection.find(email).toArray();
          res.send(result);
       })
 
