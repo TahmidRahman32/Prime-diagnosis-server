@@ -7,13 +7,11 @@ const jwt = require("jsonwebtoken");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 8000;
 
-app.use(cors({
-    origin: [
-      "http://localhost:5173",
-      "https://assignment-12-74919.web.app",
-      "https://assignment-12-74919.firebaseapp.com",
-    ]
-}));
+app.use(
+   cors({
+      origin: ["http://localhost:5173", "https://assignment-12-74919.web.app", "https://assignment-12-74919.firebaseapp.com", "http://localhost:8000"],
+   })
+);
 app.use(express.json());
 
 // console.log(process.env.DB_SECRET_PASS);
@@ -39,6 +37,7 @@ async function run() {
       const servicesCollection = client.db("diagnosis").collection("services");
       const bookingCollection = client.db("diagnosis").collection("booking");
       const paymentCollection = client.db("diagnosis").collection("payment");
+      const offersCollection = client.db("diagnosis").collection("offers");
 
       const verifyToken = (req, res, next) => {
          if (!req.headers.authorization) {
@@ -121,6 +120,17 @@ async function run() {
          const result = await usersCollection.updateOne(filter, updateDoc);
          res.send(result);
       });
+      // Offers Api
+      app.post("/offers", async (req, res) => {
+         const offer = req.body;
+         const result = await offersCollection.insertOne(offer);
+         res.send(result);
+      });
+
+      app.get("/offers", async (req, res) => {
+         const result = await offersCollection.find().toArray();
+         res.send(result);
+      });
 
       // booking api
       app.post("/bookings", async (req, res) => {
@@ -129,6 +139,10 @@ async function run() {
          res.send(result);
       });
 
+      app.get("/bookingsAll", async (req, res) => {
+         const result = await bookingCollection.find().toArray();
+         res.send(result);
+      });
       app.get("/bookings", verifyToken, async (req, res) => {
          const email = req.query.email;
          const query = { email: email };
@@ -171,25 +185,27 @@ async function run() {
       app.post("/payment", async (req, res) => {
          const payment = req.body;
          const result = await paymentCollection.insertOne(payment);
-         console.log(payment,'payment box');
-         const query = {_id: {
+         console.log(payment, "payment box");
+         const query = {
+            _id: {
                $in: payment.bookingId.map((id) => new ObjectId(id)),
-            }};
-         console.log(query, 'i am is query');
-         
+            },
+         };
+         console.log(query, "i am is query");
+
          const deleteResult = await bookingCollection.deleteMany(query);
 
-      res.send({result, deleteResult});
+         res.send({ result, deleteResult });
       });
 
-      app.get('/payment/:email',verifyToken, async(req,res)=>{
-         const email = {email: req.params.email};
+      app.get("/payment/:email", verifyToken, async (req, res) => {
+         const email = { email: req.params.email };
          if (req.params.email !== req.decoded.email) {
             return res.status(403).send({ message: "forbidden access" });
          }
          const result = await paymentCollection.find(email).toArray();
          res.send(result);
-      })
+      });
 
       // Send a ping to confirm a successful connection
       // await client.db("admin").command({ ping: 1 });
